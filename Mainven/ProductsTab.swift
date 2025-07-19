@@ -24,18 +24,18 @@ struct ProductsTab: View {
                 .onDelete(perform: deleteProducts)
             }
             .navigationTitle("Products")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: {
-                        selectedProductID = nil // Clear selection for new product
-                    }) {
-                        Label("Add Product", systemImage: "plus")
-                    }
-                }
-            }
+            // .toolbar {
+                // ToolbarItem(placement: .navigationBarTrailing) {
+                //     EditButton()
+                // }
+                // ToolbarItem {
+                //     Button(action: {
+                //         selectedProductID = nil // Clear selection for new product
+                //     }) {
+                //         Label("Add Product", systemImage: "plus")
+                //     }
+                // }
+            // }
             .sheet(item: $selectedProductID) { wrapper in
                 AddEditProductSheet(productID: wrapper.id)
                     .environment(\.managedObjectContext, viewContext)
@@ -113,12 +113,15 @@ struct AddEditProductSheet: View {
         NavigationView {
             Form {
                 TextField("Product Name", text: $name)
+                    .disabled(productID != nil)
                 TextField("Cost Price", value: $costPrice, format: .number)
                     .keyboardType(.decimalPad)
+                    .disabled(productID != nil)
                 TextField("Sale Price", value: $salePrice, format: .number)
                     .keyboardType(.decimalPad)
                 TextField("Stock Quantity", value: $stockQuantity, format: .number)
                     .keyboardType(.numberPad)
+                    .disabled(productID != nil)
                 // Image Picker
                 Button(action: {
                     showingImagePicker = true
@@ -179,12 +182,14 @@ struct AddEditProductSheet: View {
     private func saveProduct() {
         let productToSave = fetchedProduct ?? Product(context: viewContext)
         productToSave.productID = productToSave.productID ?? UUID()
-        productToSave.name = name
-        productToSave.costPrice = costPrice
+        if productID == nil {
+            productToSave.name = name
+            productToSave.costPrice = costPrice
+            productToSave.stockQuantity = stockQuantity
+        }
         productToSave.salePrice = salePrice
-        productToSave.stockQuantity = stockQuantity
         productToSave.image = image
-        productToSave.stockValue = costPrice * Double(stockQuantity)
+        productToSave.stockValue = (productToSave.costPrice) * Double(productToSave.stockQuantity)
 
         do {
             try viewContext.save()
