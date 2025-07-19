@@ -60,7 +60,7 @@ struct ProductsTab: View {
 }
 
 struct ProductCardView: View {
-    let product: Product
+    @ObservedObject var product: Product
 
     var body: some View {
         HStack {
