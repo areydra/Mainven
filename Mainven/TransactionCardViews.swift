@@ -32,7 +32,7 @@ struct PurchaseTransactionCardView: View {
 }
 
 struct SalesTransactionCardView: View {
-    let transaction: TransactionSale
+    @ObservedObject var transaction: TransactionSale
 
     var body: some View {
         VStack(alignment: .leading) {

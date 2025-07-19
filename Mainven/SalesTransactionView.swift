@@ -1,4 +1,3 @@
-
 import SwiftUI
 import CoreData
 
@@ -7,13 +6,16 @@ struct SalesTransactionView: View {
     @FetchRequest(entity: TransactionSale.entity(), sortDescriptors: [NSSortDescriptor(keyPath: \TransactionSale.date, ascending: false)])
     var salesTransactions: FetchedResults<TransactionSale>
 
-    @State private var showingAddSaleSheet = false
+    @State private var selectedSalesTransactionID: ManagedObjectIDWrapper? = nil
 
     var body: some View {
         NavigationView {
             List {
                 ForEach(salesTransactions) { transaction in
                     SalesTransactionCardView(transaction: transaction)
+                        .onTapGesture {
+                            selectedSalesTransactionID = ManagedObjectIDWrapper(id: transaction.objectID)
+                        }
                 }
                 .onDelete(perform: deleteSalesTransactions)
             }
@@ -24,14 +26,14 @@ struct SalesTransactionView: View {
                 }
                 ToolbarItem {
                     Button(action: {
-                        showingAddSaleSheet = true
+                        selectedSalesTransactionID = nil // Clear selection for new transaction
                     }) {
                         Label("Add Transaction", systemImage: "plus")
                     }
                 }
             }
-            .sheet(isPresented: $showingAddSaleSheet) {
-                AddSalesTransactionSheet()
+            .sheet(item: $selectedSalesTransactionID) { wrapper in
+                SalesTransactionSheet(transactionID: wrapper.id)
                     .environment(\.managedObjectContext, viewContext)
             }
         }
@@ -61,14 +63,18 @@ struct SalesTransactionView: View {
     }
 }
 
-struct AddSalesTransactionSheet: View {
+struct SalesTransactionSheet: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) var dismiss
+
+    var transactionID: NSManagedObjectID? // Changed to accept objectID
 
     @State private var selectedCustomer: Customer? = nil
     @State private var transactionDate: Date = Date()
     @State private var note: String = ""
     @State private var saleItems: [SaleItemData] = []
+
+    @State private var fetchedTransaction: TransactionSale? // To hold the fetched object
 
     @FetchRequest(entity: Customer.entity(), sortDescriptors: [NSSortDescriptor(keyPath: \Customer.name, ascending: true)])
     var customers: FetchedResults<Customer>
@@ -101,7 +107,7 @@ struct AddSalesTransactionSheet: View {
                     TextField("Note", text: $note)
                 }
             }
-            .navigationTitle("New Sale")
+            .navigationTitle(fetchedTransaction == nil ? "New Sale" : "Edit Sale")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -116,32 +122,68 @@ struct AddSalesTransactionSheet: View {
                     }
                 }
             }
+            .onAppear {
+                if let id = transactionID {
+                    fetchedTransaction = viewContext.object(with: id) as? TransactionSale
+                } else {
+                    // Initialize a new transaction if no ID is provided
+                    fetchedTransaction = TransactionSale(context: viewContext)
+                }
+
+                if let salesTransaction = fetchedTransaction {
+                    selectedCustomer = salesTransaction.customer
+                    transactionDate = salesTransaction.date ?? Date()
+                    note = salesTransaction.note ?? ""
+                    if let existingSaleItems = salesTransaction.saleItems as? Set<SaleItem> {
+                        saleItems = existingSaleItems.map { SaleItemData(product: $0.product, quantity: Int($0.quantity)) }
+                    }
+                }
+            }
         }
     }
 
     private func saveSalesTransaction() {
         guard let selectedCustomer = selectedCustomer else { return }
 
-        let newTransaction = TransactionSale(context: viewContext)
-        newTransaction.transactionID = UUID()
-        newTransaction.date = transactionDate
-        newTransaction.note = note
-        newTransaction.customer = selectedCustomer
+        let transactionToSave = fetchedTransaction ?? TransactionSale(context: viewContext)
+
+        // If editing, revert old stock changes first
+        if let existingTransaction = fetchedTransaction {
+            if let oldSaleItems = existingTransaction.saleItems as? Set<SaleItem> {
+                for oldSaleItem in oldSaleItems {
+                    if let product = oldSaleItem.product {
+                        product.stockQuantity += oldSaleItem.quantity
+                        product.stockValue = product.costPrice * Double(product.stockQuantity)
+                    }
+                }
+            }
+        }
+
+        transactionToSave.transactionID = transactionToSave.transactionID ?? UUID()
+        transactionToSave.date = transactionDate
+        transactionToSave.note = note
+        transactionToSave.customer = selectedCustomer
+
+        // Clear existing sale items if editing
+        if let existingSaleItems = transactionToSave.saleItems as? Set<SaleItem> {
+            for item in existingSaleItems {
+                viewContext.delete(item)
+            }
+        }
 
         for itemData in saleItems {
             guard let product = itemData.product else { continue }
 
-            // Decrease stock quantity
+            // Decrease stock quantity for new/updated sale
             product.stockQuantity -= Int64(itemData.quantity)
             product.stockValue = product.costPrice * Double(product.stockQuantity)
 
-            // Create SaleItem
             let newSaleItem = SaleItem(context: viewContext)
             newSaleItem.saleItemID = UUID()
             newSaleItem.quantity = Int64(itemData.quantity)
-            newSaleItem.salePrice = product.salePrice // Use product's current sale price
-            newSaleItem.product = product // Link to Product
-            newSaleItem.transactionSale = newTransaction // Link to TransactionSale
+            newSaleItem.salePrice = product.salePrice
+            newSaleItem.product = product
+            newSaleItem.transactionSale = transactionToSave
         }
 
         do {

@@ -7,13 +7,16 @@ struct PurchaseTransactionView: View {
     @FetchRequest(entity: TransactionPurchase.entity(), sortDescriptors: [NSSortDescriptor(keyPath: \TransactionPurchase.date, ascending: false)])
     var purchaseTransactions: FetchedResults<TransactionPurchase>
 
-    @State private var showingAddPurchaseSheet = false
+    @State private var selectedPurchaseTransactionID: ManagedObjectIDWrapper? = nil
 
     var body: some View {
         NavigationView {
             List {
                 ForEach(purchaseTransactions) { transaction in
                     PurchaseTransactionCardView(transaction: transaction)
+                        .onTapGesture {
+                            selectedPurchaseTransactionID = ManagedObjectIDWrapper(id: transaction.objectID)
+                        }
                 }
                 .onDelete(perform: deletePurchaseTransactions)
             }
@@ -24,14 +27,14 @@ struct PurchaseTransactionView: View {
                 }
                 ToolbarItem {
                     Button(action: {
-                        showingAddPurchaseSheet = true
+                        selectedPurchaseTransactionID = nil // Clear selection for new transaction
                     }) {
                         Label("Add Transaction", systemImage: "plus")
                     }
                 }
             }
-            .sheet(isPresented: $showingAddPurchaseSheet) {
-                AddPurchaseTransactionSheet()
+            .sheet(item: $selectedPurchaseTransactionID) { wrapper in
+                PurchaseTransactionSheet(transactionID: wrapper.id)
                     .environment(\.managedObjectContext, viewContext)
             }
         }
@@ -51,14 +54,18 @@ struct PurchaseTransactionView: View {
     }
 }
 
-struct AddPurchaseTransactionSheet: View {
+struct PurchaseTransactionSheet: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) var dismiss
+
+    var transactionID: NSManagedObjectID? // Changed to accept objectID
 
     @State private var selectedSupplier: Supplier? = nil
     @State private var transactionDate: Date = Date()
     @State private var note: String = ""
     @State private var purchaseItems: [PurchaseItemData] = []
+
+    @State private var fetchedTransaction: TransactionPurchase? // To hold the fetched object
 
     @FetchRequest(entity: Supplier.entity(), sortDescriptors: [NSSortDescriptor(keyPath: \Supplier.name, ascending: true)])
     var suppliers: FetchedResults<Supplier>
@@ -91,7 +98,7 @@ struct AddPurchaseTransactionSheet: View {
                     TextField("Note", text: $note)
                 }
             }
-            .navigationTitle("New Purchase")
+            .navigationTitle(fetchedTransaction == nil ? "New Purchase" : "Edit Purchase")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -106,17 +113,55 @@ struct AddPurchaseTransactionSheet: View {
                     }
                 }
             }
+            .onAppear {
+                if let id = transactionID {
+                    fetchedTransaction = viewContext.object(with: id) as? TransactionPurchase
+                } else {
+                    // Initialize a new transaction if no ID is provided
+                    fetchedTransaction = TransactionPurchase(context: viewContext)
+                }
+
+                if let purchaseTransaction = fetchedTransaction {
+                    selectedSupplier = purchaseTransaction.supplier
+                    transactionDate = purchaseTransaction.date ?? Date()
+                    note = purchaseTransaction.note ?? ""
+                    if let existingPurchaseItems = purchaseTransaction.purchaseItems as? Set<PurchaseItem> {
+                        purchaseItems = existingPurchaseItems.map { PurchaseItemData(product: $0.product, quantity: Int($0.quantity), costPrice: $0.costPrice) }
+                    }
+                }
+            }
         }
     }
 
     private func savePurchaseTransaction() {
         guard let selectedSupplier = selectedSupplier else { return }
 
-        let newTransaction = TransactionPurchase(context: viewContext)
-        newTransaction.transactionID = UUID()
-        newTransaction.date = transactionDate
-        newTransaction.note = note
-        newTransaction.supplier = selectedSupplier
+        let transactionToSave = fetchedTransaction ?? TransactionPurchase(context: viewContext)
+
+        // If editing, revert old stock changes first
+        if let existingTransaction = fetchedTransaction {
+            if let oldPurchaseItems = existingTransaction.purchaseItems as? Set<PurchaseItem> {
+                for oldPurchaseItem in oldPurchaseItems {
+                    if let product = oldPurchaseItem.product {
+                        product.stockQuantity -= oldPurchaseItem.quantity
+                        // Recalculate stockValue based on remaining stock and old costPrice
+                        product.stockValue = product.costPrice * Double(product.stockQuantity)
+                    }
+                }
+            }
+        }
+
+        transactionToSave.transactionID = transactionToSave.transactionID ?? UUID()
+        transactionToSave.date = transactionDate
+        transactionToSave.note = note
+        transactionToSave.supplier = selectedSupplier
+
+        // Clear existing purchase items if editing
+        if let existingPurchaseItems = transactionToSave.purchaseItems as? Set<PurchaseItem> {
+            for item in existingPurchaseItems {
+                viewContext.delete(item)
+            }
+        }
 
         for itemData in purchaseItems {
             guard let product = itemData.product else { continue }
@@ -144,7 +189,7 @@ struct AddPurchaseTransactionSheet: View {
             newPurchaseItem.quantity = newQuantity
             newPurchaseItem.costPrice = newCostPrice
             newPurchaseItem.product = product // Link to Product
-            newPurchaseItem.transactionPurchase = newTransaction // Link to TransactionPurchase
+            newPurchaseItem.transactionPurchase = transactionToSave // Link to TransactionPurchase
         }
 
         do {

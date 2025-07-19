@@ -6,6 +6,11 @@
 //
 
 import SwiftUI
+import CoreData // Import CoreData for NSManagedObjectID
+
+struct ManagedObjectIDWrapper: Identifiable {
+    let id: NSManagedObjectID
+}
 
 @main
 struct MainvenApp: App {
