@@ -15,6 +15,7 @@ struct HomeTab: View {
     var purchaseTransactions: FetchedResults<TransactionPurchase>
 
     @State private var selectedDate: Date = Date()
+    @State private var selectedMonthForTopSales: Date = Date()
 
     var body: some View {
         NavigationView {
@@ -26,7 +27,7 @@ struct HomeTab: View {
                         selection: $selectedDate,
                         displayedComponents: .date
                     )
-                    .datePickerStyle(.graphical)
+                    .datePickerStyle(.compact)
                     .padding(.horizontal)
 
                     // Inventory Snapshot
@@ -48,7 +49,7 @@ struct HomeTab: View {
                         HStack {
                             Text("Total Stock Value:")
                             Spacer()
-                            Text("\(totalStockValue, format: .currency(code: "IDR"))")
+                            Text("(\(totalStockValue, format: .currency(code: "IDR")))")
                         }
                     }
                     .padding()
@@ -68,25 +69,89 @@ struct HomeTab: View {
                         HStack {
                             Text("Total Revenue:")
                             Spacer()
-                            Text("\(totalRevenueForSelectedDate, format: .currency(code: "IDR"))")
+                            Text("(\(totalRevenueForSelectedDate, format: .currency(code: "IDR")))")
                         }
                         HStack {
                             Text("Total Profit:")
                             Spacer()
-                            Text("\(totalProfitForSelectedDate, format: .currency(code: "IDR"))")
+                            Text("(\(totalProfitForSelectedDate, format: .currency(code: "IDR")))")
                         }
                     }
                     .padding()
                     .background(Color.gray.opacity(0.1))
                     .cornerRadius(10)
 
-                    // TODO: Top 10 Products
+                    // Top Sales Products
+                    VStack(alignment: .leading) {
+                        HStack {
+                            Text("Top Sales Products")
+                                .font(.title2)
+                            Spacer()
+                            Button("See All") {
+                                showTopSalesModal = true
+                            }
+                        }
+                        .padding(.bottom, 5)
+
+                        DatePicker(
+                            "Select Month",
+                            selection: $selectedMonthForTopSales,
+                            displayedComponents: .date
+                        )
+                        .datePickerStyle(.compact)
+                        .labelsHidden()
+                        .padding(.bottom, 5)
+
+                        if topSalesProducts.isEmpty {
+                            Text("No sales data available for this month.")
+                                .foregroundColor(.gray)
+                        } else {
+                            ForEach(topSalesProducts.prefix(10), id: \.product.objectID) { product, quantity in
+                                HStack {
+                                    Text(product.name ?? "Unknown Product")
+                                    Spacer()
+                                    Text("\(quantity) units")
+                                }
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(10)
 
                 }
                 .padding()
             }
             .navigationTitle("Dashboard")
+            .sheet(isPresented: $showTopSalesModal) {
+                TopSalesProductsView(selectedMonth: $selectedMonthForTopSales)
+                    .environment(\.managedObjectContext, viewContext)
+            }
         }
+    }
+
+    @State private var showTopSalesModal: Bool = false
+
+    private var topSalesProducts: [(product: Product, quantity: Int)] {
+        var productSales: [Product: Int] = [:]
+
+        let calendar = Calendar.current
+        let filteredSalesTransactions = salesTransactions.filter { transaction in
+            guard let transactionDate = transaction.date else { return false }
+            return calendar.isDate(transactionDate, equalTo: selectedMonthForTopSales, toGranularity: .month)
+        }
+
+        for transaction in filteredSalesTransactions {
+            if let saleItems = transaction.saleItems as? Set<SaleItem> {
+                for item in saleItems {
+                    if let product = item.product {
+                        productSales[product, default: 0] += Int(item.quantity)
+                    }
+                }
+            }
+        }
+
+        return productSales.sorted { $0.value > $1.value }.map { (product: $0.key, quantity: $0.value) }
     }
 
     private var totalProducts: Int {
