@@ -128,7 +128,7 @@ struct PurchaseTransactionSheet: View {
                         note = purchaseTransaction.note ?? ""
 
                         if let existingPurchaseItems = purchaseTransaction.purchaseItems as? Set<PurchaseItem> {
-                            purchaseItems = existingPurchaseItems.map { PurchaseItemData(product: $0.product, quantity: Int($0.quantity), costPrice: $0.costPrice) }
+                            purchaseItems = existingPurchaseItems.map { PurchaseItemData(product: $0.product, quantity: Int($0.quantity), costPrice: $0.costPrice, minimumSalePrice: $0.minimumSalePrice) }
                         }
                     }
                 }
@@ -191,6 +191,7 @@ struct PurchaseTransactionSheet: View {
             newPurchaseItem.purchaseItemID = UUID()
             newPurchaseItem.quantity = newQuantity
             newPurchaseItem.costPrice = newCostPrice
+            newPurchaseItem.minimumSalePrice = itemData.minimumSalePrice
             newPurchaseItem.product = product // Link to Product
             newPurchaseItem.transactionPurchase = transactionToSave // Link to TransactionPurchase
         }
@@ -209,6 +210,7 @@ struct PurchaseItemData: Identifiable {
     var product: Product? = nil // Link to actual Product entity
     var quantity: Int = 0
     var costPrice: Double = 0.0 // Cost price for this specific purchase item
+    var minimumSalePrice: Double = 0.0
 }
 
 struct PurchaseItemRow: View {
@@ -232,6 +234,8 @@ struct PurchaseItemRow: View {
             TextField("Quantity", value: $item.quantity, format: .number)
                 .keyboardType(.numberPad)
             TextField("Cost Price (per unit)", value: $item.costPrice, format: .number)
+                .keyboardType(.decimalPad)
+            TextField("Minimum Sale Price (per unit)", value: $item.minimumSalePrice, format: .number)
                 .keyboardType(.decimalPad)
         }
     }

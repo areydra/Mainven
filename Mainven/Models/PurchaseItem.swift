@@ -16,6 +16,7 @@ extension PurchaseItem {
     @NSManaged public var purchaseItemID: UUID?
     @NSManaged public var quantity: Int64
     @NSManaged public var costPrice: Double
+    @NSManaged public var minimumSalePrice: Double
     @NSManaged public var product: Product?
     @NSManaged public var transactionPurchase: TransactionPurchase?
 

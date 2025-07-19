@@ -41,6 +41,11 @@ struct HomeTab: View {
                             Text("\(totalProducts)")
                         }
                         HStack {
+                            Text("Total Stock:")
+                            Spacer()
+                            Text("\(totalStock)")
+                        }
+                        HStack {
                             Text("Total Stock Value:")
                             Spacer()
                             Text("\(totalStockValue, format: .currency(code: "IDR"))")
@@ -82,6 +87,10 @@ struct HomeTab: View {
 
     private var totalProducts: Int {
         products.count
+    }
+
+    private var totalStock: Int {
+        products.reduce(0) { $0 + Int($1.stockQuantity) }
     }
 
     private var totalStockValue: Double {
