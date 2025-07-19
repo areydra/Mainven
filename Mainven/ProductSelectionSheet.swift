@@ -10,6 +10,7 @@ struct ProductSelectionSheet: View {
     var products: FetchedResults<Product>
 
     @Binding var selectedProduct: Product?
+    @State private var showingAddProductSheet = false
 
     var body: some View {
         NavigationView {
@@ -37,6 +38,17 @@ struct ProductSelectionSheet: View {
                         dismiss()
                     }
                 }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        showingAddProductSheet = true
+                    }) {
+                        Label("Add Product", systemImage: "plus")
+                    }
+                }
+            }
+            .sheet(isPresented: $showingAddProductSheet) {
+                AddEditProductSheet(productID: nil) // Pass nil for new product
+                    .environment(\.managedObjectContext, viewContext)
             }
         }
     }

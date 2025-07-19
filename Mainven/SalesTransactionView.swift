@@ -7,6 +7,7 @@ struct SalesTransactionView: View {
     var salesTransactions: FetchedResults<TransactionSale>
 
     @State private var selectedSalesTransactionID: ManagedObjectIDWrapper? = nil
+    @State private var showingAddSaleSheet = false
 
     var body: some View {
         NavigationView {
@@ -26,7 +27,7 @@ struct SalesTransactionView: View {
                 }
                 ToolbarItem {
                     Button(action: {
-                        selectedSalesTransactionID = nil // Clear selection for new transaction
+                        showingAddSaleSheet = true
                     }) {
                         Label("Add Transaction", systemImage: "plus")
                     }
@@ -34,6 +35,10 @@ struct SalesTransactionView: View {
             }
             .sheet(item: $selectedSalesTransactionID) { wrapper in
                 SalesTransactionSheet(transactionID: wrapper.id)
+                    .environment(\.managedObjectContext, viewContext)
+            }
+            .sheet(isPresented: $showingAddSaleSheet) {
+                SalesTransactionSheet(transactionID: nil)
                     .environment(\.managedObjectContext, viewContext)
             }
         }
@@ -125,17 +130,15 @@ struct SalesTransactionSheet: View {
             .onAppear {
                 if let id = transactionID {
                     fetchedTransaction = viewContext.object(with: id) as? TransactionSale
-                } else {
-                    // Initialize a new transaction if no ID is provided
-                    fetchedTransaction = TransactionSale(context: viewContext)
-                }
 
-                if let salesTransaction = fetchedTransaction {
-                    selectedCustomer = salesTransaction.customer
-                    transactionDate = salesTransaction.date ?? Date()
-                    note = salesTransaction.note ?? ""
-                    if let existingSaleItems = salesTransaction.saleItems as? Set<SaleItem> {
-                        saleItems = existingSaleItems.map { SaleItemData(product: $0.product, quantity: Int($0.quantity)) }
+                    if let salesTransaction = fetchedTransaction {
+                        selectedCustomer = salesTransaction.customer
+                        transactionDate = salesTransaction.date ?? Date()
+                        note = salesTransaction.note ?? ""
+
+                        if let existingSaleItems = salesTransaction.saleItems as? Set<SaleItem> {
+                            saleItems = existingSaleItems.map { SaleItemData(product: $0.product, quantity: Int($0.quantity)) }
+                        }
                     }
                 }
             }

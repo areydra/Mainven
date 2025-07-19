@@ -8,6 +8,7 @@ struct PurchaseTransactionView: View {
     var purchaseTransactions: FetchedResults<TransactionPurchase>
 
     @State private var selectedPurchaseTransactionID: ManagedObjectIDWrapper? = nil
+    @State private var showingAddPurchaseSheet = false
 
     var body: some View {
         NavigationView {
@@ -27,7 +28,7 @@ struct PurchaseTransactionView: View {
                 }
                 ToolbarItem {
                     Button(action: {
-                        selectedPurchaseTransactionID = nil // Clear selection for new transaction
+                        showingAddPurchaseSheet = true
                     }) {
                         Label("Add Transaction", systemImage: "plus")
                     }
@@ -35,6 +36,10 @@ struct PurchaseTransactionView: View {
             }
             .sheet(item: $selectedPurchaseTransactionID) { wrapper in
                 PurchaseTransactionSheet(transactionID: wrapper.id)
+                    .environment(\.managedObjectContext, viewContext)
+            }
+            .sheet(isPresented: $showingAddPurchaseSheet) {
+                PurchaseTransactionSheet(transactionID: nil)
                     .environment(\.managedObjectContext, viewContext)
             }
         }
@@ -116,17 +121,15 @@ struct PurchaseTransactionSheet: View {
             .onAppear {
                 if let id = transactionID {
                     fetchedTransaction = viewContext.object(with: id) as? TransactionPurchase
-                } else {
-                    // Initialize a new transaction if no ID is provided
-                    fetchedTransaction = TransactionPurchase(context: viewContext)
-                }
 
-                if let purchaseTransaction = fetchedTransaction {
-                    selectedSupplier = purchaseTransaction.supplier
-                    transactionDate = purchaseTransaction.date ?? Date()
-                    note = purchaseTransaction.note ?? ""
-                    if let existingPurchaseItems = purchaseTransaction.purchaseItems as? Set<PurchaseItem> {
-                        purchaseItems = existingPurchaseItems.map { PurchaseItemData(product: $0.product, quantity: Int($0.quantity), costPrice: $0.costPrice) }
+                    if let purchaseTransaction = fetchedTransaction {
+                        selectedSupplier = purchaseTransaction.supplier
+                        transactionDate = purchaseTransaction.date ?? Date()
+                        note = purchaseTransaction.note ?? ""
+
+                        if let existingPurchaseItems = purchaseTransaction.purchaseItems as? Set<PurchaseItem> {
+                            purchaseItems = existingPurchaseItems.map { PurchaseItemData(product: $0.product, quantity: Int($0.quantity), costPrice: $0.costPrice) }
+                        }
                     }
                 }
             }

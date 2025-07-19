@@ -10,7 +10,7 @@ struct ProductsTab: View {
     var products: FetchedResults<Product>
 
     @State private var showingAddEditProductSheet = false
-    @State private var selectedProduct: Product? = nil
+    @State private var selectedProductID: ManagedObjectIDWrapper? = nil
 
     var body: some View {
         NavigationView {
@@ -18,8 +18,7 @@ struct ProductsTab: View {
                 ForEach(products) { product in
                     ProductCardView(product: product)
                         .onTapGesture {
-                            selectedProduct = product
-                            showingAddEditProductSheet = true
+                            selectedProductID = ManagedObjectIDWrapper(id: product.objectID)
                         }
                 }
                 .onDelete(perform: deleteProducts)
@@ -31,15 +30,14 @@ struct ProductsTab: View {
                 }
                 ToolbarItem {
                     Button(action: {
-                        selectedProduct = nil // Clear selection for new product
-                        showingAddEditProductSheet = true
+                        selectedProductID = nil // Clear selection for new product
                     }) {
                         Label("Add Product", systemImage: "plus")
                     }
                 }
             }
-            .sheet(isPresented: $showingAddEditProductSheet) {
-                AddEditProductSheet(product: selectedProduct)
+            .sheet(item: $selectedProductID) { wrapper in
+                AddEditProductSheet(productID: wrapper.id)
                     .environment(\.managedObjectContext, viewContext)
             }
         }
@@ -107,7 +105,9 @@ struct AddEditProductSheet: View {
     @State private var image: Data? = nil // For product image
     @State private var showingImagePicker = false
 
-    var product: Product?
+    var productID: NSManagedObjectID? // Changed to accept objectID
+
+    @State private var fetchedProduct: Product? // To hold the fetched object
 
     var body: some View {
         NavigationView {
@@ -142,7 +142,7 @@ struct AddEditProductSheet: View {
                     ImagePicker(selectedImage: $image)
                 }
             }
-            .navigationTitle(product == nil ? "Add New Product" : "Edit Product")
+            .navigationTitle(fetchedProduct == nil ? "Add New Product" : "Edit Product")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -158,7 +158,14 @@ struct AddEditProductSheet: View {
                 }
             }
             .onAppear {
-                if let product = product {
+                if let id = productID {
+                    fetchedProduct = viewContext.object(with: id) as? Product
+                } else {
+                    // Initialize a new product if no ID is provided
+                    fetchedProduct = Product(context: viewContext)
+                }
+
+                if let product = fetchedProduct {
                     name = product.name ?? ""
                     costPrice = product.costPrice
                     salePrice = product.salePrice
@@ -170,7 +177,7 @@ struct AddEditProductSheet: View {
     }
 
     private func saveProduct() {
-        let productToSave = product ?? Product(context: viewContext)
+        let productToSave = fetchedProduct ?? Product(context: viewContext)
         productToSave.productID = productToSave.productID ?? UUID()
         productToSave.name = name
         productToSave.costPrice = costPrice
