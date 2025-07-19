@@ -10,6 +10,7 @@ struct ProductSelectionSheet: View {
     var products: FetchedResults<Product>
 
     @Binding var selectedProduct: Product?
+    var shouldShowAddProduct: Bool = false
     @State private var showingAddProductSheet = false
 
     var body: some View {
@@ -38,11 +39,13 @@ struct ProductSelectionSheet: View {
                         dismiss()
                     }
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        showingAddProductSheet = true
-                    }) {
-                        Label("Add Product", systemImage: "plus")
+                if (shouldShowAddProduct) {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button(action: {
+                            showingAddProductSheet = true
+                        }) {
+                            Label("Add Product", systemImage: "plus")
+                        }
                     }
                 }
             }

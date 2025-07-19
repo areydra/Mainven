@@ -163,17 +163,14 @@ struct AddEditProductSheet: View {
             .onAppear {
                 if let id = productID {
                     fetchedProduct = viewContext.object(with: id) as? Product
-                } else {
-                    // Initialize a new product if no ID is provided
-                    fetchedProduct = Product(context: viewContext)
-                }
-
-                if let product = fetchedProduct {
-                    name = product.name ?? ""
-                    costPrice = product.costPrice
-                    salePrice = product.salePrice
-                    stockQuantity = product.stockQuantity
-                    image = product.image
+                    
+                    if let product = fetchedProduct {
+                        name = product.name ?? ""
+                        costPrice = product.costPrice
+                        salePrice = product.salePrice
+                        stockQuantity = product.stockQuantity
+                        image = product.image
+                    }
                 }
             }
         }

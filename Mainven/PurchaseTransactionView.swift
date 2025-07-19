@@ -225,7 +225,7 @@ struct PurchaseItemRow: View {
                     .foregroundColor(item.product == nil ? .gray : .primary)
             }
             .sheet(isPresented: $showingProductSelection) {
-                ProductSelectionSheet(selectedProduct: $item.product)
+                ProductSelectionSheet(selectedProduct: $item.product, shouldShowAddProduct: true)
                     .environment(\.managedObjectContext, viewContext)
             }
 
