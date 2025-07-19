@@ -58,7 +58,7 @@ struct SalesTransactionCardView: View {
     private var totalSalesValue: Double {
         transaction.saleItems?.reduce(0.0) { (result, item) in
             if let saleItem = item as? SaleItem {
-                return result + (Double(saleItem.quantity) * saleItem.salePrice)
+                return result + (Double(saleItem.quantity) * (saleItem.customSalePrice ?? saleItem.minimumSalePrice))
             }
             return result
         } ?? 0.0

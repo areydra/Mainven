@@ -45,13 +45,13 @@ This phase focuses on building the essential components of the application to al
 * **Platform:** iOS
 * **Database:** Core Data for local data management.
 * **Database Schema:**
-    * `Product`: Stores product details (`productID`, `name`, `image`, `costPrice`, `salePrice`, `stockQuantity`, `stockValue`).
+    * `Product`: Stores product details (`productID`, `name`, `image`, `costPrice`, `minimumSalePrice`, `stockQuantity`, `stockValue`).
     * `Supplier`: Stores supplier information (`supplierID`, `name`, `location`, `phoneNumber`).
     * `Customer`: Stores customer information (`customerID`, `name`, `location`, `phoneNumber`).
     * `TransactionPurchase`: Records product purchases (`transactionID`, `date`, `note`, `supplierID`).
     * `TransactionSale`: Records product sales (`transactionID`, `date`, `note`, `customerID`).
     * `PurchaseItem`: Links `TransactionPurchase` to `Product` (`purchaseItemID`, `productID`, `quantity`, `costPrice`).
-    * `SaleItem`: Links `TransactionSale` to `Product` (`saleItemID`, `productID`, `quantity`, `salePrice`).
+    * `SaleItem`: Links `TransactionSale` to `Product` (`saleItemID`, `productID`, `quantity`, `minimumSalePrice`).
 
 #### **2. Inventory Management**
 * **Products Tab:** A central view for managing product inventory.

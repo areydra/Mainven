@@ -184,7 +184,7 @@ struct SalesTransactionSheet: View {
             let newSaleItem = SaleItem(context: viewContext)
             newSaleItem.saleItemID = UUID()
             newSaleItem.quantity = Int64(itemData.quantity)
-            newSaleItem.salePrice = product.salePrice
+            newSaleItem.minimumSalePrice = product.minimumSalePrice
             newSaleItem.customSalePrice = itemData.customSalePrice
             newSaleItem.product = product
             newSaleItem.transactionSale = transactionToSave

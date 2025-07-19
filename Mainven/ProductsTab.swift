@@ -82,7 +82,7 @@ struct ProductCardView: View {
                 HStack {
                     Text("Cost: \(product.costPrice, format: .currency(code: "IDR"))")
                     Spacer()
-                    Text("Sale: \(product.salePrice, format: .currency(code: "IDR"))")
+                    Text("Minimum Sale: \(product.minimumSalePrice, format: .currency(code: "IDR"))")
                 }
                 HStack {
                     Text("Stock: \(product.stockQuantity)")
@@ -100,7 +100,7 @@ struct AddEditProductSheet: View {
 
     @State private var name: String = ""
     @State private var costPrice: Double = 0.0
-    @State private var salePrice: Double = 0.0
+    @State private var minimumSalePrice: Double = 0.0
     @State private var stockQuantity: Int64 = 0
     @State private var image: Data? = nil // For product image
     @State private var showingImagePicker = false
@@ -117,7 +117,7 @@ struct AddEditProductSheet: View {
                 TextField("Cost Price", value: $costPrice, format: .number)
                     .keyboardType(.decimalPad)
                     .disabled(productID != nil)
-                TextField("Sale Price", value: $salePrice, format: .number)
+                TextField("Minimum Sale Price", value: $minimumSalePrice, format: .number)
                     .keyboardType(.decimalPad)
                 TextField("Stock Quantity", value: $stockQuantity, format: .number)
                     .keyboardType(.numberPad)
@@ -167,7 +167,7 @@ struct AddEditProductSheet: View {
                     if let product = fetchedProduct {
                         name = product.name ?? ""
                         costPrice = product.costPrice
-                        salePrice = product.salePrice
+                        minimumSalePrice = product.minimumSalePrice
                         stockQuantity = product.stockQuantity
                         image = product.image
                     }
@@ -184,7 +184,7 @@ struct AddEditProductSheet: View {
             productToSave.costPrice = costPrice
             productToSave.stockQuantity = stockQuantity
         }
-        productToSave.salePrice = salePrice
+        productToSave.minimumSalePrice = minimumSalePrice
         productToSave.image = image
         productToSave.stockValue = (productToSave.costPrice) * Double(productToSave.stockQuantity)
 

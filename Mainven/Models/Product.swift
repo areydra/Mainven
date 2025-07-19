@@ -17,7 +17,7 @@ extension Product {
     @NSManaged public var name: String?
     @NSManaged public var image: Data?
     @NSManaged public var costPrice: Double
-    @NSManaged public var salePrice: Double
+    @NSManaged public var minimumSalePrice: Double
     @NSManaged public var stockQuantity: Int64
     @NSManaged public var stockValue: Double
     @NSManaged public var purchaseItems: NSSet?
