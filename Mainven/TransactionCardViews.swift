@@ -42,6 +42,9 @@ struct SalesTransactionCardView: View {
                 .font(.subheadline)
             Text("Total Value: \(totalSalesValue, format: .currency(code: "IDR"))")
                 .font(.subheadline)
+            Text("Profit: \(profit, format: .currency(code: "IDR"))")
+                .font(.subheadline)
+                .foregroundColor(profit >= 0 ? .green : .red)
         }
     }
 
@@ -56,6 +59,15 @@ struct SalesTransactionCardView: View {
         transaction.saleItems?.reduce(0.0) { (result, item) in
             if let saleItem = item as? SaleItem {
                 return result + (Double(saleItem.quantity) * saleItem.salePrice)
+            }
+            return result
+        } ?? 0.0
+    }
+
+    private var profit: Double {
+        transaction.saleItems?.reduce(0.0) { (result, item) in
+            if let saleItem = item as? SaleItem, let product = saleItem.product {
+                return result + (saleItem.customSalePrice * Double(saleItem.quantity)) - (product.costPrice * Double(saleItem.quantity))
             }
             return result
         } ?? 0.0

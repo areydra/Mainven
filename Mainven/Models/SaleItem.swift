@@ -13,9 +13,10 @@ extension SaleItem {
         return NSFetchRequest<SaleItem>(entityName: "SaleItem")
     }
 
-    @NSManaged public var saleItemID: UUID?
     @NSManaged public var quantity: Int64
+    @NSManaged public var saleItemID: UUID?
     @NSManaged public var salePrice: Double
+    @NSManaged public var customSalePrice: Double
     @NSManaged public var product: Product?
     @NSManaged public var transactionSale: TransactionSale?
 

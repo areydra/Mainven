@@ -109,7 +109,7 @@ struct HomeTab: View {
         for saleTransaction in dailySales {
             if let saleItems = saleTransaction.saleItems as? Set<SaleItem> {
                 for saleItem in saleItems {
-                    totalRevenue += (Double(saleItem.quantity) * saleItem.salePrice)
+                    totalRevenue += (Double(saleItem.quantity) * (saleItem.customSalePrice ?? saleItem.salePrice))
                     // To calculate profit, we need the cost price of the product at the time of sale.
                     // Assuming product.costPrice is the current COGS, which might not be accurate for historical sales.
                     // For a more accurate profit, we would need to store the COGS at the time of sale in SaleItem.

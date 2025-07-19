@@ -27,6 +27,7 @@
         <relationship name="transactionPurchase" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="TransactionPurchase" inverseName="purchaseItems" inverseEntity="TransactionPurchase"/>
     </entity>
     <entity name="SaleItem" representedClassName=".SaleItem" syncable="YES">
+        <attribute name="customSalePrice" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="productID" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="quantity" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="saleItemID" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>

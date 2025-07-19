@@ -137,7 +137,7 @@ struct SalesTransactionSheet: View {
                         note = salesTransaction.note ?? ""
 
                         if let existingSaleItems = salesTransaction.saleItems as? Set<SaleItem> {
-                            saleItems = existingSaleItems.map { SaleItemData(product: $0.product, quantity: Int($0.quantity)) }
+                            saleItems = existingSaleItems.map { SaleItemData(product: $0.product, quantity: Int($0.quantity), customSalePrice: $0.customSalePrice) }
                         }
                     }
                 }
@@ -185,6 +185,7 @@ struct SalesTransactionSheet: View {
             newSaleItem.saleItemID = UUID()
             newSaleItem.quantity = Int64(itemData.quantity)
             newSaleItem.salePrice = product.salePrice
+            newSaleItem.customSalePrice = itemData.customSalePrice
             newSaleItem.product = product
             newSaleItem.transactionSale = transactionToSave
         }
@@ -202,6 +203,7 @@ struct SaleItemData: Identifiable {
     let id = UUID()
     var product: Product? = nil // Link to actual Product entity
     var quantity: Int = 0
+    var customSalePrice: Double = 0.0
 }
 
 struct SaleItemRow: View {
@@ -224,6 +226,8 @@ struct SaleItemRow: View {
 
             TextField("Quantity", value: $item.quantity, format: .number)
                 .keyboardType(.numberPad)
+            TextField("Custom Sale Price", value: $item.customSalePrice, format: .number)
+                .keyboardType(.decimalPad)
         }
     }
 }
