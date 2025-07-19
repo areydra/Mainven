@@ -60,7 +60,11 @@ struct HomeTab: View {
                         Text("Daily Performance (\(selectedDate, formatter: dateFormatter))")
                             .font(.title2)
                             .padding(.bottom, 5)
-
+                        HStack {
+                            Text("Total Quantity Sold:")
+                            Spacer()
+                            Text("\(totalQuantitySoldForSelectedDate)")
+                        }
                         HStack {
                             Text("Total Revenue:")
                             Spacer()
@@ -130,6 +134,18 @@ struct HomeTab: View {
             }
         }
         return totalRevenue - totalCostOfSoldGoods
+    }
+
+    private var totalQuantitySoldForSelectedDate: Int {
+        salesTransactions.filter { Calendar.current.isDate($0.date ?? Date(), inSameDayAs: selectedDate) }
+            .reduce(0) { total, transaction in
+                transaction.saleItems?.reduce(total) { itemTotal, item in
+                    if let saleItem = item as? SaleItem {
+                        return itemTotal + Int(saleItem.quantity)
+                    }
+                    return itemTotal
+                } ?? total
+            }
     }
 
     private var dateFormatter: DateFormatter {
