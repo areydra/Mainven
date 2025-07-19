@@ -1,11 +1,11 @@
 import SwiftUI
 
 struct TransactionsTab: View {
-    @State private var selectedTab: TransactionType = .purchases
+    @State private var selectedTab: TransactionType = .sales
 
     enum TransactionType: String, CaseIterable, Identifiable {
-        case purchases = "Purchases"
         case sales = "Sales"
+        case purchases = "Purchases"
 
         var id: String { self.rawValue }
     }

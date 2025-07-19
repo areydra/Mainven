@@ -20,15 +20,15 @@ struct ContentView: View {
                     Image(systemName: "list.bullet.rectangle.fill")
                     Text("Products")
                 }
-            ContactsTab()
-                .tabItem {
-                    Image(systemName: "person.3.fill")
-                    Text("Contacts")
-                }
             TransactionsTab()
                 .tabItem {
                     Image(systemName: "dollarsign.square.fill")
                     Text("Transactions")
+                }
+            ContactsTab()
+                .tabItem {
+                    Image(systemName: "person.3.fill")
+                    Text("Contacts")
                 }
         }
     }
