@@ -51,8 +51,16 @@ struct PurchaseTransactionView: View {
                 if let purchaseItems = purchaseTransaction.purchaseItems as? Set<PurchaseItem> {
                     for purchaseItem in purchaseItems {
                         if let product = purchaseItem.product {
+                            let totalValueBeforeDeletion = product.costPrice * Double(product.stockQuantity)
+                            let totalQuantityBeforeDeletion = product.stockQuantity
+
                             product.stockQuantity -= purchaseItem.quantity
-                            // Recalculate stockValue based on remaining stock and old costPrice
+
+                            if product.stockQuantity == 0 {
+                                product.costPrice = 0.0
+                            } else {
+                                product.costPrice = (totalValueBeforeDeletion - (purchaseItem.costPrice * Double(purchaseItem.quantity))) / Double(product.stockQuantity)
+                            }
                             product.stockValue = product.costPrice * Double(product.stockQuantity)
                         }
                     }
@@ -154,14 +162,29 @@ struct PurchaseTransactionSheet: View {
 
         let transactionToSave = fetchedTransaction ?? TransactionPurchase(context: viewContext)
 
-        // If editing, revert old stock changes first
+        // If editing, revert old stock changes first (including COGS reversal)
         if let existingTransaction = fetchedTransaction {
             if let oldPurchaseItems = existingTransaction.purchaseItems as? Set<PurchaseItem> {
                 for oldPurchaseItem in oldPurchaseItems {
                     if let product = oldPurchaseItem.product {
+                        // --- Start COGS Reversal Logic for old items ---
+                        let currentProductTotalValue = product.costPrice * Double(product.stockQuantity)
+                        let currentProductTotalQuantity = product.stockQuantity
+
+                        let oldPurchaseItemTotalValue = oldPurchaseItem.costPrice * Double(oldPurchaseItem.quantity)
+
+                        // Calculate the product's state *before* this oldPurchaseItem was added
+                        let quantityBeforeOldPurchaseItem = currentProductTotalQuantity - oldPurchaseItem.quantity
+
+                        if quantityBeforeOldPurchaseItem == 0 {
+                            product.costPrice = 0.0 // If removing the last item, cost becomes 0
+                        } else {
+                            // Reverse the weighted average
+                            product.costPrice = (currentProductTotalValue - oldPurchaseItemTotalValue) / Double(quantityBeforeOldPurchaseItem)
+                        }
                         product.stockQuantity -= oldPurchaseItem.quantity
-                        // Recalculate stockValue based on remaining stock and old costPrice
-                        product.stockValue = product.costPrice * Double(product.stockQuantity)
+                        product.stockValue = product.costPrice * Double(product.stockQuantity) // Recalculate stockValue
+                        // --- End COGS Reversal Logic for old items ---
                     }
                 }
             }
