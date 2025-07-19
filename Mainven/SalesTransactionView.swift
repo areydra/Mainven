@@ -39,7 +39,17 @@ struct SalesTransactionView: View {
 
     private func deleteSalesTransactions(offsets: IndexSet) {
         withAnimation {
-            offsets.map { salesTransactions[$0] }.forEach(viewContext.delete)
+            offsets.map { salesTransactions[$0] }.forEach { transactionSale in
+                if let saleItems = transactionSale.saleItems as? Set<SaleItem> {
+                    for saleItem in saleItems {
+                        if let product = saleItem.product {
+                            product.stockQuantity += saleItem.quantity
+                            product.stockValue = product.costPrice * Double(product.stockQuantity)
+                        }
+                    }
+                }
+                viewContext.delete(transactionSale)
+            }
 
             do {
                 try viewContext.save()
