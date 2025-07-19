@@ -47,10 +47,23 @@ struct PurchaseTransactionView: View {
 
     private func deletePurchaseTransactions(offsets: IndexSet) {
         withAnimation {
-            offsets.map { purchaseTransactions[$0] }.forEach(viewContext.delete)
+            offsets.map { purchaseTransactions[$0] }.forEach { purchaseTransaction in
+                if let purchaseItems = purchaseTransaction.purchaseItems as? Set<PurchaseItem> {
+                    for purchaseItem in purchaseItems {
+                        if let product = purchaseItem.product {
+                            product.stockQuantity -= purchaseItem.quantity
+                            // Recalculate stockValue based on remaining stock and old costPrice
+                            product.stockValue = product.costPrice * Double(product.stockQuantity)
+                        }
+                    }
+                }
+                viewContext.delete(purchaseTransaction)
+            }
 
             do {
-                try viewContext.save()
+                try viewContext.performAndWait { // Use performAndWait for synchronous save
+                    try viewContext.save()
+                }
             } catch {
                 let nsError = error as NSError
                 fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
@@ -197,7 +210,9 @@ struct PurchaseTransactionSheet: View {
         }
 
         do {
-            try viewContext.save()
+            try viewContext.performAndWait { // Use performAndWait for synchronous save
+                try viewContext.save()
+            }
         } catch {
             let nsError = error as NSError
             fatalError("Unresolved error \(nsError), \(nsError.userInfo)")

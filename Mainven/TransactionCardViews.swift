@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct PurchaseTransactionCardView: View {
-    let transaction: TransactionPurchase
+    @ObservedObject var transaction: TransactionPurchase
 
     var body: some View {
         VStack(alignment: .leading) {
