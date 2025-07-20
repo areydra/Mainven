@@ -1,4 +1,3 @@
-
 import SwiftUI
 import CoreData
 
@@ -12,11 +11,22 @@ struct ProductSelectionSheet: View {
     @Binding var selectedProduct: Product?
     var shouldShowAddProduct: Bool = false
     @State private var showingAddProductSheet = false
+    @State private var searchText = ""
+
+    var filteredProducts: [Product] {
+        if searchText.isEmpty {
+            return Array(products)
+        } else {
+            return products.filter { product in
+                product.name?.localizedCaseInsensitiveContains(searchText) ?? false
+            }
+        }
+    }
 
     var body: some View {
         NavigationView {
             List {
-                ForEach(products) { product in
+                ForEach(filteredProducts) { product in
                     Button(action: {
                         selectedProduct = product
                         dismiss()
@@ -31,6 +41,7 @@ struct ProductSelectionSheet: View {
                     }
                 }
             }
+            .searchable(text: $searchText, prompt: "Search for a product")
             .navigationTitle("Select Product")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -56,4 +67,3 @@ struct ProductSelectionSheet: View {
         }
     }
 }
-

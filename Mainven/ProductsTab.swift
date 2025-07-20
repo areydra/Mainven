@@ -11,11 +11,22 @@ struct ProductsTab: View {
 
     @State private var showingAddEditProductSheet = false
     @State private var selectedProductID: ManagedObjectIDWrapper? = nil
+    @State private var searchText = ""
+
+    var filteredProducts: [Product] {
+        if searchText.isEmpty {
+            return Array(products)
+        } else {
+            return products.filter { product in
+                product.name?.localizedCaseInsensitiveContains(searchText) ?? false
+            }
+        }
+    }
 
     var body: some View {
         NavigationView {
             List {
-                ForEach(products) { product in
+                ForEach(filteredProducts) { product in
                     ProductCardView(product: product)
                         .onTapGesture {
                             selectedProductID = ManagedObjectIDWrapper(id: product.objectID)
@@ -24,6 +35,7 @@ struct ProductsTab: View {
                 .onDelete(perform: deleteProducts)
             }
             .navigationTitle("Products")
+            .searchable(text: $searchText, prompt: "Search for a product")
             // .toolbar {
                 // ToolbarItem(placement: .navigationBarTrailing) {
                 //     EditButton()
