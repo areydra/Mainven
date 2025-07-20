@@ -9,6 +9,8 @@ struct PurchaseTransactionCardView: View {
                 .font(.headline)
             Text("Date: \(transaction.date ?? Date(), formatter: itemFormatter)")
                 .font(.subheadline)
+            Text("Total Product: \(transaction.purchaseItems?.count ?? 0)")
+                .font(.subheadline)
             Text("Total Value: \(totalPurchaseValue, format: .currency(code: "IDR"))")
                 .font(.subheadline)
         }
@@ -41,6 +43,8 @@ struct SalesTransactionCardView: View {
             Text("Date: \(transaction.date ?? Date(), formatter: itemFormatter)")
                 .font(.subheadline)
             Text("Total Value: \(totalSalesValue, format: .currency(code: "IDR"))")
+                .font(.subheadline)
+            Text("Total Product: \(transaction.saleItems?.count ?? 0)")
                 .font(.subheadline)
             Text("Profit: \(profit, format: .currency(code: "IDR"))")
                 .font(.subheadline)
