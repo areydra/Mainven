@@ -36,18 +36,6 @@ struct ProductsTab: View {
             }
             .navigationTitle("Products")
             .searchable(text: $searchText, prompt: "Search for a product")
-            // .toolbar {
-                // ToolbarItem(placement: .navigationBarTrailing) {
-                //     EditButton()
-                // }
-                // ToolbarItem {
-                //     Button(action: {
-                //         selectedProductID = nil // Clear selection for new product
-                //     }) {
-                //         Label("Add Product", systemImage: "plus")
-                //     }
-                // }
-            // }
             .sheet(item: $selectedProductID) { wrapper in
                 AddEditProductSheet(productID: wrapper.id)
                     .environment(\.managedObjectContext, viewContext)
@@ -57,14 +45,8 @@ struct ProductsTab: View {
 
     private func deleteProducts(offsets: IndexSet) {
         withAnimation {
-            offsets.map { products[$0] }.forEach(viewContext.delete)
-
-            do {
-                try viewContext.save()
-            } catch {
-                let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
-            }
+            let service = ProductService(context: viewContext)
+            offsets.map { products[$0] }.forEach(service.deleteProduct)
         }
     }
 }
@@ -114,12 +96,10 @@ struct AddEditProductSheet: View {
     @State private var costPrice: Double = 0.0
     @State private var minimumSalePrice: Double = 0.0
     @State private var stockQuantity: Int64 = 0
-    @State private var image: Data? = nil // For product image
+    @State private var image: Data? = nil
     @State private var showingImagePicker = false
 
-    var productID: NSManagedObjectID? // Changed to accept objectID
-
-    @State private var fetchedProduct: Product? // To hold the fetched object
+    var productID: NSManagedObjectID?
 
     var body: some View {
         NavigationView {
@@ -134,10 +114,7 @@ struct AddEditProductSheet: View {
                 TextField("Stock Quantity", value: $stockQuantity, format: .number)
                     .keyboardType(.numberPad)
                     .disabled(productID != nil)
-                // Image Picker
-                Button(action: {
-                    showingImagePicker = true
-                }) {
+                Button(action: { showingImagePicker = true }) {
                     if let imageData = image, let uiImage = UIImage(data: imageData) {
                         Image(uiImage: uiImage)
                             .resizable()
@@ -157,13 +134,11 @@ struct AddEditProductSheet: View {
                     ImagePicker(selectedImage: $image)
                 }
             }
-            .navigationTitle(fetchedProduct == nil ? "Add New Product" : "Edit Product")
+            .navigationTitle(productID == nil ? "Add New Product" : "Edit Product")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
+                    Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Save") {
@@ -172,40 +147,30 @@ struct AddEditProductSheet: View {
                     }
                 }
             }
-            .onAppear {
-                if let id = productID {
-                    fetchedProduct = viewContext.object(with: id) as? Product
-                    
-                    if let product = fetchedProduct {
-                        name = product.name ?? ""
-                        costPrice = product.costPrice
-                        minimumSalePrice = product.minimumSalePrice
-                        stockQuantity = product.stockQuantity
-                        image = product.image
-                    }
-                }
-            }
+            .onAppear(perform: loadProductData)
+        }
+    }
+
+    private func loadProductData() {
+        if let id = productID, let product = viewContext.object(with: id) as? Product {
+            name = product.name ?? ""
+            costPrice = product.costPrice
+            minimumSalePrice = product.minimumSalePrice
+            stockQuantity = product.stockQuantity
+            image = product.image
         }
     }
 
     private func saveProduct() {
-        let productToSave = fetchedProduct ?? Product(context: viewContext)
-        productToSave.productID = productToSave.productID ?? UUID()
-        if productID == nil {
-            productToSave.name = name
-            productToSave.costPrice = costPrice
-            productToSave.stockQuantity = stockQuantity
-        }
-        productToSave.minimumSalePrice = minimumSalePrice
-        productToSave.image = image
-        productToSave.stockValue = (productToSave.costPrice) * Double(productToSave.stockQuantity)
-
-        do {
-            try viewContext.save()
-        } catch {
-            let nsError = error as NSError
-            fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
-        }
+        let service = ProductService(context: viewContext)
+        service.saveProduct(
+            productID: productID,
+            name: name,
+            costPrice: costPrice,
+            minimumSalePrice: minimumSalePrice,
+            stockQuantity: stockQuantity,
+            image: image
+        )
     }
 }
 

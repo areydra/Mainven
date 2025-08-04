@@ -40,42 +40,15 @@ struct PurchaseTransactionView: View {
             }
             .sheet(isPresented: $showingAddPurchaseSheet) {
                 PurchaseTransactionSheet(transactionID: nil)
-                    .environment(\.managedObjectContext, viewContext)
+                    .environment(\.managedObject-Context, viewContext)
             }
         }
     }
 
     private func deletePurchaseTransactions(offsets: IndexSet) {
         withAnimation {
-            offsets.map { purchaseTransactions[$0] }.forEach { purchaseTransaction in
-                if let purchaseItems = purchaseTransaction.purchaseItems as? Set<PurchaseItem> {
-                    for purchaseItem in purchaseItems {
-                        if let product = purchaseItem.product {
-                            let totalValueBeforeDeletion = product.costPrice * Double(product.stockQuantity)
-                            let totalQuantityBeforeDeletion = product.stockQuantity
-
-                            product.stockQuantity -= purchaseItem.quantity
-
-                            if product.stockQuantity == 0 {
-                                product.costPrice = 0.0
-                            } else {
-                                product.costPrice = (totalValueBeforeDeletion - (purchaseItem.costPrice * Double(purchaseItem.quantity))) / Double(product.stockQuantity)
-                            }
-                            product.stockValue = product.costPrice * Double(product.stockQuantity)
-                        }
-                    }
-                }
-                viewContext.delete(purchaseTransaction)
-            }
-
-            do {
-                try viewContext.performAndWait { // Use performAndWait for synchronous save
-                    try viewContext.save()
-                }
-            } catch {
-                let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
-            }
+            let service = TransactionService(context: viewContext)
+            offsets.map { purchaseTransactions[$0] }.forEach(service.deletePurchaseTransaction)
         }
     }
 }
@@ -84,14 +57,12 @@ struct PurchaseTransactionSheet: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) var dismiss
 
-    var transactionID: NSManagedObjectID? // Changed to accept objectID
+    var transactionID: NSManagedObjectID?
 
     @State private var selectedSupplier: Supplier? = nil
     @State private var transactionDate: Date = Date()
     @State private var note: String = ""
     @State private var purchaseItems: [PurchaseItemData] = []
-
-    @State private var fetchedTransaction: TransactionPurchase? // To hold the fetched object
 
     @FetchRequest(entity: Supplier.entity(), sortDescriptors: [NSSortDescriptor(keyPath: \Supplier.name, ascending: true)])
     var suppliers: FetchedResults<Supplier>
@@ -107,7 +78,6 @@ struct PurchaseTransactionSheet: View {
                         }
                     }
                     .pickerStyle(.navigationLink)
-                    // TODO: Add option to add new supplier
                 }
 
                 Section(header: Text("Products")) {
@@ -124,7 +94,7 @@ struct PurchaseTransactionSheet: View {
                     TextField("Note", text: $note)
                 }
             }
-            .navigationTitle(fetchedTransaction == nil ? "New Purchase" : "Edit Purchase")
+            .navigationTitle(transactionID == nil ? "New Purchase" : "Edit Purchase")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -139,116 +109,49 @@ struct PurchaseTransactionSheet: View {
                     }
                 }
             }
-            .onAppear {
-                if let id = transactionID {
-                    fetchedTransaction = viewContext.object(with: id) as? TransactionPurchase
+            .onAppear(perform: loadTransactionData)
+        }
+    }
 
-                    if let purchaseTransaction = fetchedTransaction {
-                        selectedSupplier = purchaseTransaction.supplier
-                        transactionDate = purchaseTransaction.date ?? Date()
-                        note = purchaseTransaction.note ?? ""
-
-                        if let existingPurchaseItems = purchaseTransaction.purchaseItems as? Set<PurchaseItem> {
-                            purchaseItems = existingPurchaseItems.map { PurchaseItemData(product: $0.product, quantity: Int($0.quantity), costPrice: $0.costPrice, minimumSalePrice: $0.minimumSalePrice) }
-                        }
-                    }
-                }
+    private func loadTransactionData() {
+        if let id = transactionID, let transaction = viewContext.object(with: id) as? TransactionPurchase {
+            selectedSupplier = transaction.supplier
+            transactionDate = transaction.date ?? Date()
+            note = transaction.note ?? ""
+            if let items = transaction.purchaseItems as? Set<PurchaseItem> {
+                purchaseItems = items.map { PurchaseItemData(from: $0) }
             }
         }
     }
 
     private func savePurchaseTransaction() {
-        guard let selectedSupplier = selectedSupplier else { return }
-
-        let transactionToSave = fetchedTransaction ?? TransactionPurchase(context: viewContext)
-
-        // If editing, revert old stock changes first (including COGS reversal)
-        if let existingTransaction = fetchedTransaction {
-            if let oldPurchaseItems = existingTransaction.purchaseItems as? Set<PurchaseItem> {
-                for oldPurchaseItem in oldPurchaseItems {
-                    if let product = oldPurchaseItem.product {
-                        // --- Start COGS Reversal Logic for old items ---
-                        let currentProductTotalValue = product.costPrice * Double(product.stockQuantity)
-                        let currentProductTotalQuantity = product.stockQuantity
-
-                        let oldPurchaseItemTotalValue = oldPurchaseItem.costPrice * Double(oldPurchaseItem.quantity)
-
-                        // Calculate the product's state *before* this oldPurchaseItem was added
-                        let quantityBeforeOldPurchaseItem = currentProductTotalQuantity - oldPurchaseItem.quantity
-
-                        if quantityBeforeOldPurchaseItem == 0 {
-                            product.costPrice = 0.0 // If removing the last item, cost becomes 0
-                        } else {
-                            // Reverse the weighted average
-                            product.costPrice = (currentProductTotalValue - oldPurchaseItemTotalValue) / Double(quantityBeforeOldPurchaseItem)
-                        }
-                        product.stockQuantity -= oldPurchaseItem.quantity
-                        product.stockValue = product.costPrice * Double(product.stockQuantity) // Recalculate stockValue
-                        // --- End COGS Reversal Logic for old items ---
-                    }
-                }
-            }
-        }
-
-        transactionToSave.transactionID = transactionToSave.transactionID ?? UUID()
-        transactionToSave.date = transactionDate
-        transactionToSave.note = note
-        transactionToSave.supplier = selectedSupplier
-
-        // Clear existing purchase items if editing
-        if let existingPurchaseItems = transactionToSave.purchaseItems as? Set<PurchaseItem> {
-            for item in existingPurchaseItems {
-                viewContext.delete(item)
-            }
-        }
-
-        for itemData in purchaseItems {
-            guard let product = itemData.product else { continue }
-
-            // COGS Calculation and Product Update
-            let oldQuantity = product.stockQuantity
-            let oldCostPrice = product.costPrice
-            let newQuantity = Int64(itemData.quantity)
-            let newCostPrice = itemData.costPrice
-
-            if oldQuantity == 0 {
-                // Initial Stock COGS Formula
-                product.costPrice = newCostPrice
-            } else {
-                // Additional Stock COGS Formula (Weighted Average)
-                product.costPrice = ((Double(oldQuantity) * oldCostPrice) + (Double(newQuantity) * newCostPrice)) / (Double(oldQuantity) + Double(newQuantity))
-            }
-
-            product.stockQuantity += newQuantity
-            product.stockValue = product.costPrice * Double(product.stockQuantity)
-
-            // Create PurchaseItem
-            let newPurchaseItem = PurchaseItem(context: viewContext)
-            newPurchaseItem.purchaseItemID = UUID()
-            newPurchaseItem.quantity = newQuantity
-            newPurchaseItem.costPrice = newCostPrice
-            newPurchaseItem.minimumSalePrice = itemData.minimumSalePrice
-            newPurchaseItem.product = product // Link to Product
-            newPurchaseItem.transactionPurchase = transactionToSave // Link to TransactionPurchase
-        }
-
-        do {
-            try viewContext.performAndWait { // Use performAndWait for synchronous save
-                try viewContext.save()
-            }
-        } catch {
-            let nsError = error as NSError
-            fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
-        }
+        guard let supplier = selectedSupplier else { return }
+        let service = TransactionService(context: viewContext)
+        service.savePurchaseTransaction(
+            transactionID: transactionID,
+            supplier: supplier,
+            date: transactionDate,
+            note: note,
+            items: purchaseItems
+        )
     }
 }
 
 struct PurchaseItemData: Identifiable {
     let id = UUID()
-    var product: Product? = nil // Link to actual Product entity
+    var product: Product? = nil
     var quantity: Int = 0
-    var costPrice: Double = 0.0 // Cost price for this specific purchase item
+    var costPrice: Double = 0.0
     var minimumSalePrice: Double = 0.0
+
+    init(from item: PurchaseItem? = nil) {
+        if let item = item {
+            self.product = item.product
+            self.quantity = Int(item.quantity)
+            self.costPrice = item.costPrice
+            self.minimumSalePrice = item.minimumSalePrice
+        }
+    }
 }
 
 struct PurchaseItemRow: View {
@@ -258,9 +161,7 @@ struct PurchaseItemRow: View {
 
     var body: some View {
         VStack(alignment: .leading) {
-            Button(action: {
-                showingProductSelection = true
-            }) {
+            Button(action: { showingProductSelection = true }) {
                 Text(item.product?.name ?? "Select Product")
                     .foregroundColor(item.product == nil ? .gray : .primary)
             }

@@ -10,7 +10,7 @@ struct ContactManagementView<T: NSManagedObject & Identifiable>: View {
     @State private var selectedContact: T? = nil
 
     let title: String
-    let entityName: String // Keep this for AddEditContactSheet
+    let entityName: String
 
     init(title: String, entityName: String, fetchRequest: FetchRequest<T>) {
         self.title = title
@@ -37,7 +37,7 @@ struct ContactManagementView<T: NSManagedObject & Identifiable>: View {
                 }
                 ToolbarItem {
                     Button(action: {
-                        selectedContact = nil // Ensure no pre-filled data for new contact
+                        selectedContact = nil
                         showingAddContactSheet = true
                     }) {
                         Label("Add Contact", systemImage: "plus")
@@ -53,14 +53,8 @@ struct ContactManagementView<T: NSManagedObject & Identifiable>: View {
 
     private func deleteContacts(offsets: IndexSet) {
         withAnimation {
-            offsets.map { contacts[$0] }.forEach(viewContext.delete)
-
-            do {
-                try viewContext.save()
-            } catch {
-                let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
-            }
+            let service = ContactService(context: viewContext)
+            offsets.map { contacts[$0] }.forEach(service.deleteContact)
         }
     }
 }
@@ -108,9 +102,7 @@ struct AddEditContactSheet<T: NSManagedObject & Identifiable>: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
+                    Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Save") {
@@ -119,35 +111,27 @@ struct AddEditContactSheet<T: NSManagedObject & Identifiable>: View {
                     }
                 }
             }
-            .onAppear {
-                if let contact = contact {
-                    name = contact.value(forKey: "name") as? String ?? ""
-                    location = contact.value(forKey: "location") as? String ?? ""
-                    phoneNumber = contact.value(forKey: "phoneNumber") as? String ?? ""
-                }
-            }
+            .onAppear(perform: loadContactData)
+        }
+    }
+
+    private func loadContactData() {
+        if let contact = contact {
+            name = contact.value(forKey: "name") as? String ?? ""
+            location = contact.value(forKey: "location") as? String ?? ""
+            phoneNumber = contact.value(forKey: "phoneNumber") as? String ?? ""
         }
     }
 
     private func saveContact() {
-        let newContact: NSManagedObject
-        if let contact = contact {
-            newContact = contact
-        } else {
-            newContact = NSEntityDescription.insertNewObject(forEntityName: entityName, into: viewContext)
-            newContact.setValue(UUID(), forKey: "\(entityName.lowercased())ID")
-        }
-
-        newContact.setValue(name, forKey: "name")
-        newContact.setValue(location, forKey: "location")
-        newContact.setValue(phoneNumber, forKey: "phoneNumber")
-
-        do {
-            try viewContext.save()
-        } catch {
-            let nsError = error as NSError
-            fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
-        }
+        let service = ContactService(context: viewContext)
+        service.saveContact(
+            contact: contact,
+            entityName: entityName,
+            name: name,
+            location: location,
+            phoneNumber: phoneNumber
+        )
     }
 }
 

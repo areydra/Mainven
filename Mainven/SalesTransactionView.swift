@@ -46,24 +46,8 @@ struct SalesTransactionView: View {
 
     private func deleteSalesTransactions(offsets: IndexSet) {
         withAnimation {
-            offsets.map { salesTransactions[$0] }.forEach { transactionSale in
-                if let saleItems = transactionSale.saleItems as? Set<SaleItem> {
-                    for saleItem in saleItems {
-                        if let product = saleItem.product {
-                            product.stockQuantity += saleItem.quantity
-                            product.stockValue = product.costPrice * Double(product.stockQuantity)
-                        }
-                    }
-                }
-                viewContext.delete(transactionSale)
-            }
-
-            do {
-                try viewContext.save()
-            } catch {
-                let nsError = error as NSError
-                fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
-            }
+            let service = TransactionService(context: viewContext)
+            offsets.map { salesTransactions[$0] }.forEach(service.deleteSalesTransaction)
         }
     }
 }
@@ -146,56 +130,15 @@ struct SalesTransactionSheet: View {
     }
 
     private func saveSalesTransaction() {
-        guard let selectedCustomer = selectedCustomer else { return }
-
-        let transactionToSave = fetchedTransaction ?? TransactionSale(context: viewContext)
-
-        // If editing, revert old stock changes first
-        if let existingTransaction = fetchedTransaction {
-            if let oldSaleItems = existingTransaction.saleItems as? Set<SaleItem> {
-                for oldSaleItem in oldSaleItems {
-                    if let product = oldSaleItem.product {
-                        product.stockQuantity += oldSaleItem.quantity
-                        product.stockValue = product.costPrice * Double(product.stockQuantity)
-                    }
-                }
-            }
-        }
-
-        transactionToSave.transactionID = transactionToSave.transactionID ?? UUID()
-        transactionToSave.date = transactionDate
-        transactionToSave.note = note
-        transactionToSave.customer = selectedCustomer
-
-        // Clear existing sale items if editing
-        if let existingSaleItems = transactionToSave.saleItems as? Set<SaleItem> {
-            for item in existingSaleItems {
-                viewContext.delete(item)
-            }
-        }
-
-        for itemData in saleItems {
-            guard let product = itemData.product else { continue }
-
-            // Decrease stock quantity for new/updated sale
-            product.stockQuantity -= Int64(itemData.quantity)
-            product.stockValue = product.costPrice * Double(product.stockQuantity)
-
-            let newSaleItem = SaleItem(context: viewContext)
-            newSaleItem.saleItemID = UUID()
-            newSaleItem.quantity = Int64(itemData.quantity)
-            newSaleItem.minimumSalePrice = product.minimumSalePrice
-            newSaleItem.customSalePrice = itemData.customSalePrice
-            newSaleItem.product = product
-            newSaleItem.transactionSale = transactionToSave
-        }
-
-        do {
-            try viewContext.save()
-        } catch {
-            let nsError = error as NSError
-            fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
-        }
+        guard let customer = selectedCustomer else { return }
+        let service = TransactionService(context: viewContext)
+        service.saveSalesTransaction(
+            transactionID: transactionID,
+            customer: customer,
+            date: transactionDate,
+            note: note,
+            items: saleItems
+        )
     }
 }
 
